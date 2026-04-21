@@ -1,0 +1,207 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Diet Plan - SmartFit Hub{% endblock %}
+
+{% block extra_css %}
+<style>
+    .diet-plan-card {
+        background: linear-gradient(145deg, #f8fff8, #e8f8e8);
+        border: 1px solid #d4edda !important;
+        border-radius: 15px;
+        transition: transform 0.3s, box-shadow 0.3s;
+    }
+    .diet-plan-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 35px rgba(0,128,0,0.2);
+    }
+    .meal-card {
+        background: linear-gradient(145deg, #fff8f0, #fff0e0);
+        border-left: 4px solid #ffc107;
+    }
+    .macros-chart { height: 300px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card shadow-lg border-0">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-apple-alt me-2"></i>Today's Diet Plan
+                </h5>
+                <button class="btn btn-light btn-sm fw-bold" onclick="generateDietPlan()">
+                    <i class="fas fa-sync-alt me-1"></i>New Plan
+                </button>
+            </div>
+            <div class="card-body p-0">
+                {% if diet_plans %}
+                    {% for diet in diet_plans %}
+                    <div class="diet-plan-card p-4 m-3" id="diet-{{ diet.id|default:forloop.counter }}">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <div>
+                                <h5 class="mb-1">{{ diet.date|date:"MMM d, Y" }}</h5>
+                                <small class="text-muted">Generated today</small>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge bg-primary fs-6 fw-bold px-3 py-2">{{ diet.total_calories|default:2000 }} cal</span>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            {% if diet.meals %}
+                                {% for meal in diet.meals %}
+                                <div class="col-md-6 mb-4">
+                                    <div class="card meal-card h-100 shadow-sm">
+                                        <div class="card-body">
+                                            <h6 class="card-title fw-bold text-warning mb-2">{{ meal.name|default:"Meal" }}</h6>
+                                            <div class="mb-3">
+                                                {% if meal.items %}
+                                                    {% for item in meal.items %}
+                                                    <div class="d-flex align-items-center mb-1">
+                                                        <i class="fas fa-check-circle text-success me-2"></i>
+                                                        <span>{{ item }}</span>
+                                                    </div>
+                                                    {% endfor %}
+                                                {% else %}
+                                                    <div class="text-muted">Indian vegetarian meal</div>
+                                                {% endif %}
+                                            </div>
+                                            <div class="macros-badge d-flex justify-content-between small text-muted">
+                                                <span><i class="fas fa-drumstick-bite me-1"></i>{{ meal.protein|default:30|floatformat:0 }}g P</span>
+                                                <span><i class="fas fa-bread-slice me-1"></i>{{ meal.carbs|default:50|floatformat:0 }}g C</span>
+                                                <span><i class="fas fa-oil-can me-1"></i>{{ meal.fats|default:20|floatformat:0 }}g F</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <!-- Fallback meals -->
+                                <div class="col-md-6 mb-4">
+                                    <div class="card meal-card h-100 shadow-sm">
+                                        <div class="card-body text-center text-muted">
+                                            <i class="fas fa-utensils fa-2x mb-3"></i>
+                                            <h6>Breakfast</h6>
+                                            <p>Poha + Curd (400 cal)</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-4">
+                                    <div class="card meal-card h-100 shadow-sm">
+                                        <div class="card-body text-center text-muted">
+                                            <i class="fas fa-utensils fa-2x mb-3"></i>
+                                            <h6>Lunch</h6>
+                                            <p>Dal Rice + Raita (600 cal)</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mt-4 pt-3 border-top">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="consumed-{{ diet.id|default:forloop.counter }}">
+                                <label class="form-check-label fw-semibold" for="consumed-{{ diet.id|default:forloop.counter }}">
+                                    <i class="fas fa-check-circle text-success me-2"></i>Mark as consumed today
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="text-center py-5 my-5">
+                    <i class="fas fa-utensils fa-4x text-muted mb-4"></i>
+                    <h3 class="text-muted mb-4">No Diet Plans Yet</h3>
+                    <p class="lead text-muted mb-4">Generate your personalized Indian diet plan based on your goals!</p>
+                    <button class="btn btn-success btn-lg px-5 fw-bold shadow-lg" onclick="generateDietPlan()">
+                        <i class="fas fa-magic me-2"></i>Generate My Diet Plan
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Macros Sidebar -->
+    <div class="col-md-4">
+        <div class="card sticky-top" style="top: 20px;">
+            <div class="card-header bg-gradient text-white">
+                <h6 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Daily Macros</h6>
+            </div>
+            <div class="card-body macros-chart">
+                <canvas id="macrosChart"></canvas>
+            </div>
+            <div class="card-footer bg-light text-center">
+                <small class="text-muted">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Protein: 30% | Carbs: 50% | Fats: 20%
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const macrosCtx = document.getElementById('macrosChart');
+    if (macrosCtx) {
+        new Chart(macrosCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Protein', 'Carbs', 'Fats'],
+                datasets: [{
+                    data: [30, 50, 20],
+                    backgroundColor: ['#ff6b6b', '#4ecdc4', '#45b7d1'],
+                    borderWidth: 0,
+                    hoverOffset: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    }
+});
+
+function generateDietPlan() {
+    const btn = event.target;
+    btn.innerHTML = 'Generating...';
+    btn.disabled = true;
+
+    fetch('/api/diet/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        alert(data.message || "Done");
+        location.reload();
+    })
+    .catch(() => alert("Error"))
+    .finally(() => {
+        btn.innerHTML = 'New Plan';
+        btn.disabled = false;
+    });
+}
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            cookie = cookie.trim();
+            if (cookie.startsWith(name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}

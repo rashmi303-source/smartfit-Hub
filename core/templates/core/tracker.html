@@ -1,0 +1,211 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Daily Tracker - SmartFit Hub{% endblock %}
+
+{% block extra_css %}
+<style>
+    .tracker-card { box-shadow: 0 10px 30px rgba(0,0,0,0.1); border-radius: 15px; }
+    .stat-circle {
+        width: 80px; height: 80px;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.5rem; font-weight: bold;
+    }
+    .calories-circle { background: linear-gradient(135deg, #ff6b6b, #ff8e8e); color: white; }
+    .water-circle { background: linear-gradient(135deg, #4ecdc4, #6ee7db); color: white; }
+    .progress-circle { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+    table tbody tr:hover { background-color: #f8f9fa; transform: scale(1.01); transition: all 0.2s; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Tracker Form -->
+    <div class="col-lg-4 mb-4">
+        <div class="card tracker-card h-100">
+            <div class="card-header bg-gradient text-white border-0">
+                <h6 class="mb-0 fw-bold">
+                    <i class="fas fa-plus-circle me-2"></i>Add Today's Entry
+                </h6>
+            </div>
+            <div class="card-body">
+                <form id="trackerForm">
+                    {% csrf_token %}
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-6">
+                            <div class="form-floating">
+                                <input type="number" class="form-control" id="calories_consumed" name="calories_consumed" placeholder="1800">
+                                <label for="calories_consumed">Calories In</label>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="form-floating">
+                                <input type="number" class="form-control" id="calories_burned" name="calories_burned" placeholder="400">
+                                <label for="calories_burned">Calories Out</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-6">
+                            <div class="form-floating">
+                                <input type="number" step="0.1" class="form-control" id="water_intake" name="water_intake" placeholder="2.5">
+                                <label for="water_intake">Water (L)</label>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="form-floating">
+                                <input type="number" step="0.1" class="form-control" id="weight" name="weight" placeholder="70.5">
+                                <label for="weight">Weight (kg)</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-check mb-4">
+                        <input class="form-check-input" type="checkbox" id="workout_completed" name="is_workout_completed">
+                        <label class="form-check-label fw-semibold" for="workout_completed">
+                            <i class="fas fa-dumbbell me-2 text-primary"></i>Workout Completed Today
+                        </label>
+                    </div>
+
+                    <button type="submit" class="btn btn-success btn-lg w-100 py-3 fw-bold shadow-sm">
+                        <i class="fas fa-save me-2"></i>Save Today's Entry
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Table -->
+    <div class="col-lg-8">
+        <div class="card tracker-card h-100">
+            <div class="card-header bg-gradient text-white border-0 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold">
+                    <i class="fas fa-chart-line me-2"></i>Tracking History
+                </h6>
+                <button class="btn btn-light btn-sm" onclick="clearHistory()">
+                    <i class="fas fa-trash me-1"></i>Clear All
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th><i class="fas fa-calendar me-1"></i>Date</th>
+                                <th><i class="fas fa-fire me-1"></i>Calories</th>
+                                <th><i class="fas fa-tint me-1"></i>Water</th>
+                                <th><i class="fas fa-weight me-1"></i>Weight</th>
+                                <th><i class="fas fa-check-circle me-1"></i>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if tracking %}
+                                {% for track in tracking %}
+                                <tr class="align-middle">
+                                    <td><strong>{{ track.date|date:"MMM d" }}</strong><br><small>{{ track.date|date:"l" }}</small></td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="stat-circle calories-circle me-3 fs-5">{{ track.calories_consumed|default:0 }}</div>
+                                            <div>
+                                                <small class="text-success fw-bold">In</small><br>
+                                                <small class="text-danger">{{ track.calories_burned|default:0 }} Out</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="stat-circle water-circle fs-5">{{ track.water_intake|default:0 }}L</div>
+                                    </td>
+                                    <td>
+                                        <strong>{{ track.weight|floatformat:1|default:"N/A" }}kg</strong>
+                                    </td>
+                                    <td>
+                                        {% if track.is_workout_completed %}
+                                            <span class="badge bg-success fs-6 px-3 py-2">
+                                                <i class="fas fa-check-circle me-1"></i>Completed
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-warning fs-6 px-3 py-2">
+                                                <i class="fas fa-clock me-1"></i>Pending
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="editEntry({{ track.id|default:forloop.counter }})">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center py-5 text-muted">
+                                    <i class="fas fa-inbox fa-3x mb-3 opacity-50"></i>
+                                    <h5>No tracking data yet</h5>
+                                    <p class="lead">Start tracking your daily progress above!</p>
+                                    <button class="btn btn-outline-primary" onclick="document.getElementById('trackerForm').scrollIntoView()">
+                                        <i class="fas fa-plus me-2"></i>Add First Entry
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('trackerForm');
+
+    form.addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(form);
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+
+    // loading state
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving...';
+    submitBtn.disabled = true;
+
+    fetch('/api/tracker/', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        alert(data.message || "Saved successfully!");
+        location.reload();
+    })
+    .catch(error => {
+        console.error(error);
+        alert("❌ Error saving entry");
+    })
+    .finally(() => {
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    });
+});
+
+function editEntry(id) {
+    alert(`Edit entry ${id} (Feature coming soon!)`);
+}
+
+function clearHistory() {
+    if (confirm('Clear all tracking data? This cannot be undone.')) {
+        alert('History cleared! (Demo)');
+        location.reload();
+    }
+}
+</script>
+{% endblock %}
