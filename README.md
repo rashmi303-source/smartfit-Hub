@@ -1,0 +1,1 @@
+SmartFit Hub is a data-centric wellness application that transforms manual fitness logging into a visual analytics experience. By integrating professional health APIs with a robust Python backend, it eliminates guesswork and provides users with scientifically accurate insights into their 30-day health trends.
